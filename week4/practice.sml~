@@ -1,8 +1,0 @@
-(* 1 *)
-fun compose_opt f g =
-  fn x => case (g x) of
-	      NONE => NONE
-	    | SOME y => case (f y) of
-			    NONE => NONE
-			  | SOME z => z
-

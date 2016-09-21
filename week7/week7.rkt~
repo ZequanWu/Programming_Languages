@@ -1,4 +1,0 @@
-(define (Const i) (list 'Const i))
-(define (Negate e) (list 'Negate e))
-(define (Add e1 e2) (list 'Add e1 e2))
-(define (Multiply e1 e2) (list 'Multiply e1 e2))

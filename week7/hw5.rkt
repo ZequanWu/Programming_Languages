@@ -122,7 +122,8 @@
 
 ;; Problem 4
 
-(define mupl-map "CHANGE")
+(define mupl-map
+  (fun "map" 
 
 (define mupl-mapAddN 
   (mlet "map" mupl-map
