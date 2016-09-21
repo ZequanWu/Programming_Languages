@@ -21,10 +21,18 @@
 (struct closure (env fun) #:transparent) 
 
 ;; Problem 1
+(define (racketlist->mupllist xs)
+  (if (null? xs)
+      (aunit)
+      (apair (car xs) (racketlist->mupllist (cdr xs)))))
 
-;; CHANGE (put your solutions here)
+(define (mupllist->racketlist xs) 
+  (if (aunit? xs)
+      '()
+      (cons (apair-e1 xs) (mupllist->racketlist (apair-e2 xs)))))
 
 ;; Problem 2
+
 
 ;; lookup a variable in an environment
 ;; Do NOT change this function
@@ -39,8 +47,9 @@
 ;; "in real life" it would be a helper function of eval-exp.
 (define (eval-under-env e env)
   (cond [(var? e) 
-         (envlookup env (var-string e))]
-        [(add? e) 
+         (envlookup env e)]
+        [(int? e) e]
+        [(add? e)
          (let ([v1 (eval-under-env (add-e1 e) env)]
                [v2 (eval-under-env (add-e2 e) env)])
            (if (and (int? v1)
@@ -48,7 +57,42 @@
                (int (+ (int-num v1) 
                        (int-num v2)))
                (error "MUPL addition applied to non-number")))]
-        ;; CHANGE add more cases here
+        [(ifgreater? e) (let ([e1 (eval-under-env (ifgreater-e1 e) env)]
+                              [e2 (eval-under-env (ifgreater-e2 e) env)])
+                          (if (and (int? e1) (int? e2))
+                              (if (> (int-num e1) (int-num e2))
+                                  (eval-under-env (ifgreater-e3 e) env)
+                                  (eval-under-env (ifgreater-e4 e) env))
+                              (error "MUPL ifgreater applied to non-number")))]
+        [(mlet? e) (eval-under-env (mlet-body e)
+                                   (cons (cons (mlet-var e)
+                                               (eval-under-env (mlet-e e) env))
+                                         env))]
+        [(call? e) (if (closure? (call-funexp e))
+                       (let* ([c (call-funexp e)]
+                              [f (closure-fun c)]
+                              [f-name (fun-nameopt f)]
+                              [arg-name (fun-formal f)]
+                              [para (eval-under-env (call-actual e) env)])
+                         (eval-under-env (fun-body f)
+                                         (if f-name
+                                             (cons (cons f-name f)
+                                                   (cons (cons arg-name para)
+                                                         env))
+                                             (cons (cons arg-name para)
+                                                   env))))
+                       (error "bad MUPL expression: ~v"))]
+        [(apair? e) (apair (eval-under-env (apair-e1 e) env)
+                           (eval-under-env (apair-e2 e) env))]
+        [(fst? e) (if (apair? (fst-e e))
+                      (eval-under-env (apair-e1 (fst-e e)) env)
+                      (error "MUPL fst applied to non-pair"))]
+        [(snd? e) (if (apair? (snd-e e))
+                      (eval-under-env (apair-e2 (snd-e e)) env)
+                      (error "MUPL snd applied to non-pair"))]
+        [(isaunit? e) (if (aunit? e)
+                          (int 1)
+                          (int 0))]
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
 ;; Do NOT change
@@ -56,12 +100,25 @@
   (eval-under-env e null))
         
 ;; Problem 3
+(define (ifaunit e1 e2 e3)
+  (ifgreater (isaunit e1) (int 0) e2 e3))
 
-(define (ifaunit e1 e2 e3) "CHANGE")
+(define (mlet* lstlst e2)
+  (letrec ([f (lambda (l e)
+                (if (null? l)
+                    e
+                    (mlet (var (car (car l)))
+                          (cdr (car l))
+                          (f (cdr l) e))))])
+    (f lstlst e2)))                           
 
-(define (mlet* lstlst e2) "CHANGE")
-
-(define (ifeq e1 e2 e3 e4) "CHANGE")
+(define (ifeq e1 e2 e3 e4)
+  (mlet (var "e1")
+        e1
+        (mlet (var "e2")
+              e2
+              (ifgreater (var "e1") (var "e2") e4
+                         (ifgreater (var "e2") (var "e1") e4 e3)))))
 
 ;; Problem 4
 
