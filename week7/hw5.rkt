@@ -47,7 +47,7 @@
 ;; "in real life" it would be a helper function of eval-exp.
 (define (eval-under-env e env)
   (cond [(var? e) 
-         (envlookup env e)]
+         (envlookup env (var-string e))]
         [(int? e) e]
         [(add? e)
          (let ([v1 (eval-under-env (add-e1 e) env)]
@@ -68,31 +68,36 @@
                                    (cons (cons (mlet-var e)
                                                (eval-under-env (mlet-e e) env))
                                          env))]
-        [(call? e) (if (closure? (call-funexp e))
-                       (let* ([c (call-funexp e)]
-                              [f (closure-fun c)]
-                              [f-name (fun-nameopt f)]
-                              [arg-name (fun-formal f)]
-                              [para (eval-under-env (call-actual e) env)])
-                         (eval-under-env (fun-body f)
-                                         (if f-name
-                                             (cons (cons f-name f)
-                                                   (cons (cons arg-name para)
-                                                         env))
-                                             (cons (cons arg-name para)
-                                                   env))))
-                       (error "bad MUPL expression: ~v"))]
+        [(closure? e) e]
+        [(fun? e) (closure env e)]
+        [(call? e) (let* ([clos (eval-under-env (call-funexp e) env)]
+                         
+                          [f (closure-fun clos)]
+                          [f-name (fun-nameopt f)]
+                          [arg-name (fun-formal f)]
+                          [para (eval-under-env (call-actual e) env)]
+                          [extend-env (lambda (lop1 lop2)
+                                        (if (null? lop1)
+                                            lop2
+                                            (f (cdr lop1)
+                                               (cons (car lop1)) lop2)))]
+                          [new-env (extend-env (closure-env clos)
+                                               env)])
+                     (eval-under-env (fun-body f)
+                                     (if f-name
+                                         (cons (cons f-name f)
+                                               (cons (cons arg-name para)
+                                                     new-env))
+                                         (cons (cons arg-name para)
+                                               new-env))))]
         [(apair? e) (apair (eval-under-env (apair-e1 e) env)
                            (eval-under-env (apair-e2 e) env))]
-        [(fst? e) (if (apair? (fst-e e))
-                      (eval-under-env (apair-e1 (fst-e e)) env)
-                      (error "MUPL fst applied to non-pair"))]
-        [(snd? e) (if (apair? (snd-e e))
-                      (eval-under-env (apair-e2 (snd-e e)) env)
-                      (error "MUPL snd applied to non-pair"))]
-        [(isaunit? e) (if (aunit? e)
+        [(fst? e) (apair-e1 (eval-under-env (fst-e e) env))]
+        [(snd? e) (apair-e2 (eval-under-env (snd-e e) env))]
+        [(isaunit? e) (if (aunit? (eval-under-env (isaunit-e e) env))
                           (int 1)
                           (int 0))]
+        [(aunit? e) e]
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
 ;; Do NOT change
@@ -107,23 +112,32 @@
   (letrec ([f (lambda (l e)
                 (if (null? l)
                     e
-                    (mlet (var (car (car l)))
+                    (mlet (car (car l))
                           (cdr (car l))
                           (f (cdr l) e))))])
-    (f lstlst e2)))                           
+    (f lstlst e2)))
 
 (define (ifeq e1 e2 e3 e4)
-  (mlet (var "e1")
+  (mlet "e1"
         e1
-        (mlet (var "e2")
+        (mlet "e2"
               e2
               (ifgreater (var "e1") (var "e2") e4
                          (ifgreater (var "e2") (var "e1") e4 e3)))))
 
 ;; Problem 4
 
-(define mupl-map
-  (fun "map" 
+(define mupl-map "CHANGE")
+  ;; (closure '()
+  ;;          (fun #f "function"
+  ;;               (fun "map" "list"
+  ;;                    (ifaunit (var "list")
+  ;;                             (aunit)
+  ;;                             (apair (call (closure '() (var "function"))
+  ;;                                          (fst-e (var "list")))
+  ;;                                    (call (closure '() (var "map"))
+  ;;                                          (snd-e (var "list")))))))))
+                                           
 
 (define mupl-mapAddN 
   (mlet "map" mupl-map
